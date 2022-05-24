@@ -1,0 +1,21 @@
+[package]
+name = "ktx2-tools"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ktx2-compress"
+path = "src/ktx2-compress.rs"
+
+[[bin]]
+name = "ktx2-info"
+path = "src/ktx2-info.rs"
+
+[[bin]]
+name = "ktx2-to-dds"
+path = "src/ktx2-to-dds.rs"
+
+[dependencies]
+ddsfile = "0.5.1"
+ktx2 = { path = "../ktx2" }
+zstd = "0.11.2"
