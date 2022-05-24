@@ -17,5 +17,5 @@ path = "src/ktx2-to-dds.rs"
 
 [dependencies]
 ddsfile = "0.5.1"
-ktx2 = { path = "../ktx2" }
+ktx2 = { git = "https://github.com/expenses/ktx2", branch = "as-bytes" }
 zstd = "0.11.2"

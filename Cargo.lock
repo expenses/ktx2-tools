@@ -61,6 +61,7 @@ dependencies = [
 [[package]]
 name = "ktx2"
 version = "0.3.0"
+source = "git+https://github.com/expenses/ktx2?branch=as-bytes#375d3bb2cf7f77254fb5dfbe5aaecd440a2cf3b7"
 dependencies = [
  "bitflags",
 ]
