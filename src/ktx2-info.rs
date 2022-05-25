@@ -40,11 +40,7 @@ fn main() {
     println!("[Key Value Pairs]");
 
     for (key, value) in ktx2.key_value_data() {
-        println!(
-            "{}: {}",
-            key,
-            String::from_utf8_lossy(value)
-        );
+        println!("{}: {}", key, String::from_utf8_lossy(value));
     }
 
     println!();

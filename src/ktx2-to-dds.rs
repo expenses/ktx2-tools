@@ -35,11 +35,12 @@ fn main() {
 
     for level in ktx2.levels() {
         let level_bytes = match header.supercompression_scheme {
-            Some(ktx2::SupercompressionScheme::Zstandard) => {
-                std::borrow::Cow::Owned(zstd::bulk::decompress(level.bytes, level.uncompressed_byte_length as usize).unwrap())
-            },
+            Some(ktx2::SupercompressionScheme::Zstandard) => std::borrow::Cow::Owned(
+                zstd::bulk::decompress(level.bytes, level.uncompressed_byte_length as usize)
+                    .unwrap(),
+            ),
             Some(other) => todo!("{:?}", other),
-            None => std::borrow::Cow::Borrowed(level.bytes)
+            None => std::borrow::Cow::Borrowed(level.bytes),
         };
         let size = level_bytes.len() / face_count;
         for (i, face) in faces.iter_mut().enumerate() {
