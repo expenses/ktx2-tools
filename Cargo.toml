@@ -3,6 +3,9 @@ name = "ktx2-tools"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "ktx2-compress"
 path = "src/ktx2-compress.rs"

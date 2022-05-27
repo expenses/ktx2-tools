@@ -14,6 +14,7 @@ fn main() {
         depth: Some(header.pixel_depth).filter(|&depth| depth != 0),
         format: match header.format {
             Some(ktx2::Format::R32G32B32A32_SFLOAT) => ddsfile::DxgiFormat::R32G32B32A32_Float,
+            Some(ktx2::Format::BC6H_UFLOAT_BLOCK) => ddsfile::DxgiFormat::BC6H_UF16,
             other => unimplemented!("unsupported format: {:?}", other),
         },
         mipmap_levels: Some(header.level_count).filter(|&count| count != 0),
