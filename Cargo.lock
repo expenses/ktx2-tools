@@ -35,6 +35,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "basis-universal"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4370c833ee2aa93266a91020a3e3ccac025bf62a4bf3148deb3749e899e2140"
+dependencies = [
+ "basis-universal-sys",
+ "bitflags",
+ "lazy_static",
+]
+
+[[package]]
+name = "basis-universal-sys"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "840eabe29cb724fc27525c3cb626880d66fb49231209ad2edd07ed1df197f643"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -356,6 +376,7 @@ dependencies = [
 name = "ktx2-tools"
 version = "0.1.0"
 dependencies = [
+ "basis-universal",
  "ddsfile",
  "ktx2",
  "pollster",
