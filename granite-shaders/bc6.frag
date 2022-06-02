@@ -673,7 +673,7 @@ DecodedInterpolation decode_bc6_mode30(uvec4 payload, int linear_pixel, int part
     return DecodedInterpolation(ep0, ep1, w);
 }
 
-layout(location = 0) out uvec4 uOutput;
+layout(location = 0) out vec4 uOutput;
 
 void main()
 {
@@ -761,5 +761,10 @@ void main()
         rgba_result = (rgba_result * 31) >> 6;
     }
 
-    uOutput = uvec4(rgba_result, 0x3c00);
+    uOutput = vec4(
+        unpackHalf2x16(rgba_result.x).x,
+        unpackHalf2x16(rgba_result.y).x,
+        unpackHalf2x16(rgba_result.z).x,
+        unpackHalf2x16(0x3c00).x
+    );
 }
