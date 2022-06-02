@@ -27,7 +27,7 @@ fn main() {
         format: match (header.format, uastc_transfer_function) {
             (Some(ktx2::Format::R32G32B32A32_SFLOAT), _) => ddsfile::DxgiFormat::R32G32B32A32_Float,
             (Some(ktx2::Format::R16G16B16A16_SFLOAT), _) => ddsfile::DxgiFormat::R16G16B16A16_Float,
-            (Some(ktx2::Format::BC6H_UFLOAT_BLOCK), _) => ddsfile::DxgiFormat::BC6H_UF16,
+            (Some(ktx2::Format::BC6H_UFLOAT_BLOCK), _) => ddsfile::DxgiFormat::R32G32B32A32_Float,
             (None, Some(ktx2::TransferFunction::SRGB)) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
             (None, Some(_)) => ddsfile::DxgiFormat::BC7_UNorm,
             other => unimplemented!("unsupported format: {:?}", other),
@@ -90,6 +90,26 @@ fn main() {
         } else {
             level_bytes
         };
+
+        let mut olevel_bytes = Vec::new();
+
+        for i in 0 .. face_count {
+            let size = level_bytes.len() / face_count;
+            
+            olevel_bytes.extend_from_slice(&bcndecode::decode(
+                &level_bytes[i * size..(i + 1) * size],
+                header.pixel_width as usize >> level_index,
+                header.pixel_height as usize >> level_index,
+                bcndecode::BcnEncoding::Bc6H,
+                bcndecode::BcnDecoderFormat::RGBA
+            ).unwrap())
+            
+            //olevel_bytes.extend_from_slice(&utgh::decompress_bytes(&level_bytes[i * size..(i + 1) * size], header.pixel_width as usize >> level_index));
+        }
+
+        println!("{} {} {}", level_bytes.len(), olevel_bytes.len(), olevel_bytes.len() / level_bytes.len());
+
+        let level_bytes = olevel_bytes;
 
         let size = level_bytes.len() / face_count;
         for (i, face) in faces.iter_mut().enumerate() {
