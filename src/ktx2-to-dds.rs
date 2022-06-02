@@ -1,6 +1,8 @@
 use wgpu::util::DeviceExt;
 
 fn main() {
+    env_logger::init();
+
     let filename = std::env::args().nth(1).unwrap();
     let bytes = std::fs::read(&filename).unwrap();
 
@@ -10,7 +12,7 @@ fn main() {
 
     println!("{:#?}", header);
 
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+    let instance = wgpu::Instance::new(wgpu::Backends::GL);
 
     let adapter =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
@@ -19,11 +21,8 @@ fn main() {
     let (device, queue) = pollster::block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: None,
-            features: wgpu::Features::PUSH_CONSTANTS,
-            limits: wgpu::Limits {
-                max_push_constant_size: 8,
-                ..Default::default()
-            },
+            features: wgpu::Features::empty(),
+            limits: wgpu::Limits::downlevel_webgl2_defaults(),
         },
         None,
     ))
@@ -34,17 +33,7 @@ fn main() {
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::StorageTexture {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    format: wgpu::TextureFormat::Rgba16Uint,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
+                visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Uint,
                     view_dimension: wgpu::TextureViewDimension::D2,
@@ -58,20 +47,33 @@ fn main() {
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[wgpu::PushConstantRange {
-            stages: wgpu::ShaderStages::COMPUTE,
-            range: 0..std::mem::size_of::<[u32; 2]>() as u32,
-        }],
+        push_constant_ranges: &[],
     });
 
-    let shader =
-        device.create_shader_module(&wgpu::include_spirv!("../granite-shaders/bc6.comp.spv"));
+    let vertex_shader = 
+    device.create_shader_module(&wgpu::include_spirv!("../granite-shaders/fullscreen_tri.vert.spv"));
 
-    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+
+    let fragment_shader =
+        device.create_shader_module(&wgpu::include_spirv!("../granite-shaders/bc6.frag.spv"));
+
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
-        module: &shader,
-        entry_point: "main",
+        vertex: wgpu::VertexState {
+            module: &vertex_shader,
+            entry_point: "main",
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &fragment_shader,
+            entry_point: "main",
+            targets: &[wgpu::TextureFormat::Rgba16Uint.into()]
+        }),
+        primitive: Default::default(),
+            depth_stencil: None,
+            multisample: Default::default(),
+            multiview: Default::default(),
     });
 
     let uastc_transfer_function = ktx2
@@ -206,7 +208,7 @@ fn main() {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba16Uint,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             });
 
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -216,12 +218,6 @@ fn main() {
                     wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::TextureView(
-                            &output_texture.create_view(&Default::default()),
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(
                             &texture.create_view(&Default::default()),
                         ),
                     },
@@ -230,22 +226,30 @@ fn main() {
 
             let mut command_encoder = device.create_command_encoder(&Default::default());
 
-            let mut compute_pass = command_encoder.begin_compute_pass(&Default::default());
+            let output_view = output_texture.create_view(&Default::default());
 
-            compute_pass.set_pipeline(&pipeline);
+            let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[
+                    wgpu::RenderPassColorAttachment {
+                        view: &output_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: true
+                        }
+                    }
+                ],
+                depth_stencil_attachment: None
+            });
 
-            compute_pass.set_bind_group(0, &bind_group, &[]);
+            render_pass.set_pipeline(&pipeline);
 
-            let mut push_constants = [0; 8];
+            render_pass.set_bind_group(0, &bind_group, &[]);
 
-            push_constants[0..4].copy_from_slice(&(layer_width as i32).to_le_bytes());
-            push_constants[4..8].copy_from_slice(&(layer_height as i32).to_le_bytes());
+            render_pass.draw(0..3, 0..1);
 
-            compute_pass.set_push_constants(0, &push_constants);
-
-            compute_pass.dispatch_workgroups(layer_width >> 2, layer_height >> 2, 1);
-
-            drop(compute_pass);
+            drop(render_pass);
 
             command_encoder.copy_texture_to_buffer(
                 wgpu::ImageCopyTexture {

@@ -22,12 +22,10 @@
  */
 
 #extension GL_EXT_samplerless_texture_functions : require
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 
 #include "bitextract.h"
 
-layout(set = 0, binding = 0, rgba16ui) writeonly uniform uimage2D uOutput;
-layout(set = 0, binding = 1) uniform utexture2D uInput;
+layout(set = 0, binding = 0) uniform utexture2D uInput;
 
 const bool SIGNED = false;
 
@@ -36,14 +34,6 @@ layout(push_constant) uniform Registers
     ivec2 resolution;
 } registers;
 
-ivec2 build_coord()
-{
-    ivec2 base = ivec2(gl_WorkGroupID.xy) * 8;
-    base.x += 4 * (int(gl_LocalInvocationID.z) & 1);
-    base.y += 2 * (int(gl_LocalInvocationID.z) & 2);
-    base += ivec2(gl_LocalInvocationID.xy);
-    return base;
-}
 
 const int weight_table3[8] = int[](0, 9, 18, 27, 37, 46, 55, 64);
 const int weight_table4[16] = int[](0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64);
@@ -683,12 +673,12 @@ DecodedInterpolation decode_bc6_mode30(uvec4 payload, int linear_pixel, int part
     return DecodedInterpolation(ep0, ep1, w);
 }
 
+layout(location = 0) out uvec4 uOutput;
+
 void main()
 {
-    ivec2 coord = build_coord();
-    if (any(greaterThanEqual(coord, registers.resolution)))
-        return;
-
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+    
     ivec2 tile_coord = coord >> 2;
     ivec2 pixel_coord = coord & 3;
     int linear_pixel = 4 * pixel_coord.y + pixel_coord.x;
@@ -771,5 +761,5 @@ void main()
         rgba_result = (rgba_result * 31) >> 6;
     }
 
-    imageStore(uOutput, coord, uvec4(rgba_result, 0x3c00));
+    uOutput = uvec4(rgba_result, 0x3c00);
 }
