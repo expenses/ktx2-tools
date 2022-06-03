@@ -92,7 +92,7 @@ fn main() {
                             usage: wgpu::TextureUsages::TEXTURE_BINDING
                                 | wgpu::TextureUsages::COPY_DST,
                         },
-                        &level.bytes,
+                        level.bytes,
                     )
                     .create_view(&wgpu::TextureViewDescriptor::default());
 

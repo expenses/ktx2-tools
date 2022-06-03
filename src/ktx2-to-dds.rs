@@ -11,7 +11,7 @@ fn main() {
     let uastc_transfer_function = ktx2
         .data_format_descriptors()
         .filter_map(|dfd| {
-            let basic_dfd = ktx2::BasicDataFormatDescriptor::parse(&dfd.data);
+            let basic_dfd = ktx2::BasicDataFormatDescriptor::parse(dfd.data);
             basic_dfd.ok()
         })
         .filter(|basic_dfd| basic_dfd.color_model == Some(ktx2::ColorModel::UASTC))
@@ -49,7 +49,6 @@ fn main() {
 
     let mut faces = vec![Vec::new(); face_count];
 
-    basis_universal::transcoding::transcoder_init();
     let transcoder = basis_universal::LowLevelUastcTranscoder::new();
 
     for (level_index, level) in ktx2.levels().enumerate() {
