@@ -48,7 +48,7 @@ fn main() {
     if true {
         for (i, level) in ktx2.levels().enumerate() {
             println!("[Level {} (width: {}, height: {})]", i, width, height);
-            println!("Byte length: {}", level.bytes.len());
+            println!("Byte length: {}", level.data.len());
             println!(
                 "Uncompressed byte length: {}",
                 level.uncompressed_byte_length

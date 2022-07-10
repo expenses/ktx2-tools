@@ -52,11 +52,11 @@ fn main() {
     for (level_index, level) in ktx2.levels().enumerate() {
         let level_bytes = match header.supercompression_scheme {
             Some(ktx2::SupercompressionScheme::Zstandard) => std::borrow::Cow::Owned(
-                zstd::bulk::decompress(level.bytes, level.uncompressed_byte_length as usize)
+                zstd::bulk::decompress(level.data, level.uncompressed_byte_length as usize)
                     .unwrap(),
             ),
             Some(other) => todo!("{:?}", other),
-            None => std::borrow::Cow::Borrowed(level.bytes),
+            None => std::borrow::Cow::Borrowed(level.data),
         };
 
         let level_bytes = if uastc_transfer_function.is_some() {

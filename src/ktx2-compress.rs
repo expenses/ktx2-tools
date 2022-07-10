@@ -37,7 +37,7 @@ fn main() {
             .levels()
             .map(|level| WriterLevel {
                 uncompressed_length: level.uncompressed_byte_length as usize,
-                bytes: zstd::bulk::compress(level.bytes, 0).unwrap(),
+                bytes: zstd::bulk::compress(level.data, 0).unwrap(),
             })
             .collect(),
     };

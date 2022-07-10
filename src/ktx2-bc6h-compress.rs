@@ -16,10 +16,6 @@ fn main() {
 
     println!("{:#?} {}", header, num_levels);
 
-    if let Some(scheme) = header.supercompression_scheme {
-        panic!("Expected there to be no scheme, got: {:?}", scheme);
-    }
-
     assert_eq!(header.format, Some(ktx2::Format::R16G16B16A16_SFLOAT));
 
     assert_eq!(header.face_count, 6);
@@ -46,12 +42,21 @@ fn main() {
             .take(num_levels as usize)
             .enumerate()
             .map(|(i, level)| {
+                let level_bytes = match header.supercompression_scheme {
+                    Some(ktx2::SupercompressionScheme::Zstandard) => std::borrow::Cow::Owned(
+                        zstd::bulk::decompress(level.data, level.uncompressed_byte_length as usize)
+                            .unwrap(),
+                    ),
+                    Some(other) => todo!("{:?}", other),
+                    None => std::borrow::Cow::Borrowed(level.data),
+                };
+
                 let width = header.pixel_width >> i;
                 let height = header.pixel_height >> i;
 
                 let mut compressed = Vec::new();
 
-                for chunk in level.bytes.chunks(level.bytes.len() / 6) {
+                for chunk in level_bytes.chunks(level_bytes.len() / 6) {
                     let compressed_chunk = intel_tex_2::bc6h::compress_blocks(
                         &intel_tex_2::bc6h::very_slow_settings(),
                         &intel_tex_2::RgbaSurface {
@@ -66,7 +71,7 @@ fn main() {
                 }
 
                 WriterLevel {
-                    uncompressed_length: level.uncompressed_byte_length as usize,
+                    uncompressed_length: compressed.len(),
                     bytes: zstd::bulk::compress(&compressed, 0).unwrap(),
                 }
             })
