@@ -1,6 +1,4 @@
 use ktx2_tools::{Writer, WriterHeader, WriterLevel};
-use wgpu::util::DeviceExt;
-use wgpu_bc6h_compression::{CompressionParams, Compressor3D};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -22,31 +20,9 @@ fn main() {
         panic!("Expected there to be no scheme, got: {:?}", scheme);
     }
 
-    let wgpu_format = match header.format {
-        Some(ktx2::Format::R32G32B32A32_SFLOAT) => wgpu::TextureFormat::Rgba32Float,
-        Some(ktx2::Format::R16G16B16A16_SFLOAT) => wgpu::TextureFormat::Rgba16Float,
-        other => panic!("Unsupported format: {:?}", other),
-    };
+    assert_eq!(header.format, Some(ktx2::Format::R16G16B16A16_SFLOAT));
 
     assert_eq!(header.face_count, 6);
-
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-
-    let adapter =
-        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-            .unwrap();
-
-    let (device, queue) = pollster::block_on(adapter.request_device(
-        &wgpu::DeviceDescriptor {
-            label: None,
-            features: wgpu::Features::empty(),
-            limits: wgpu::Limits::default(),
-        },
-        None,
-    ))
-    .unwrap();
-
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
 
     let writer = Writer {
         header: WriterHeader {
@@ -73,90 +49,25 @@ fn main() {
                 let width = header.pixel_width >> i;
                 let height = header.pixel_height >> i;
 
-                let extent = wgpu::Extent3d {
-                    width,
-                    height,
-                    depth_or_array_layers: 6,
-                };
+                let mut compressed = Vec::new();
 
-                let texture_view = device
-                    .create_texture_with_data(
-                        &queue,
-                        &wgpu::TextureDescriptor {
-                            label: Some("uncompressed texture"),
-                            size: extent,
-                            mip_level_count: 1,
-                            sample_count: 1,
-                            dimension: wgpu::TextureDimension::D3,
-                            format: wgpu_format,
-                            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                                | wgpu::TextureUsages::COPY_DST,
+                for chunk in level.bytes.chunks(level.bytes.len() / 6) {
+                    let compressed_chunk = intel_tex_2::bc6h::compress_blocks(
+                        &intel_tex_2::bc6h::very_slow_settings(),
+                        &intel_tex_2::RgbaSurface {
+                            width,
+                            height,
+                            stride: width * 8,
+                            data: chunk,
                         },
-                        level.bytes,
-                    )
-                    .create_view(&wgpu::TextureViewDescriptor::default());
+                    );
 
-                let buffer_size = (extent.width as u64
-                    * extent.height as u64
-                    * extent.depth_or_array_layers as u64)
-                    .max(16);
-
-                dbg!(buffer_size);
-
-                let target_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    size: buffer_size,
-                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-                    mapped_at_creation: false,
-                });
-
-                let mut command_encoder =
-                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-                let params = CompressionParams {
-                    bind_group_label: None,
-                    sampler: &sampler,
-                    texture: &texture_view,
-                    extent,
-                };
-
-                Compressor3D::new(&device).compress_to_buffer(
-                    &device,
-                    &mut command_encoder,
-                    &params,
-                    &target_buffer,
-                );
-
-                let mappable_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    size: buffer_size,
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                    mapped_at_creation: false,
-                });
-
-                command_encoder.copy_buffer_to_buffer(
-                    &target_buffer,
-                    0,
-                    &mappable_buffer,
-                    0,
-                    buffer_size,
-                );
-
-                queue.submit(Some(command_encoder.finish()));
-
-                let slice = mappable_buffer.slice(..);
-
-                let map_future = slice.map_async(wgpu::MapMode::Read);
-
-                device.poll(wgpu::Maintain::Wait);
-
-                pollster::block_on(map_future).unwrap();
-
-                let bytes = slice.get_mapped_range();
+                    compressed.extend_from_slice(&compressed_chunk);
+                }
 
                 WriterLevel {
                     uncompressed_length: level.uncompressed_byte_length as usize,
-                    bytes: zstd::bulk::compress(&bytes, 0).unwrap(),
+                    bytes: zstd::bulk::compress(&compressed, 0).unwrap(),
                 }
             })
             .collect(),

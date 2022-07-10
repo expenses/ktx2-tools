@@ -15,9 +15,7 @@ fn main() {
             basic_dfd.ok()
         })
         .filter(|basic_dfd| basic_dfd.color_model == Some(ktx2::ColorModel::UASTC))
-        .filter_map(|basic_dfd| {
-            basic_dfd.transfer_function
-        })
+        .filter_map(|basic_dfd| basic_dfd.transfer_function)
         .next();
 
     let mut dds = ddsfile::Dds::new_dxgi(ddsfile::NewDxgiParams {

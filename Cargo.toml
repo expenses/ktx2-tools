@@ -27,6 +27,5 @@ ddsfile = "0.5.1"
 ktx2 = { git = "https://github.com/expenses/ktx2", branch = "as-bytes" }
 pollster = "0.2.5"
 zstd = "0.11.2"
-wgpu-bc6h-compression = { git = "https://github.com/expenses/wgpu-bc6h-compression" }
-wgpu = "0.12.0"
 basis-universal = "0.2.0"
+intel_tex_2 = "0.2.0"
