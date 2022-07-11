@@ -23,9 +23,9 @@ impl<'a> Writer<'a> {
         let mut kvd_bytes = Vec::new();
 
         for (key, value) in key_value_pairs.iter() {
-            let length = ((key.len() + 1 + value.len()) as u32).to_le_bytes();
+            let length = (key.len() + 1 + value.len()) as u32;
 
-            kvd_bytes.extend_from_slice(&length);
+            kvd_bytes.extend_from_slice(&length.to_le_bytes());
 
             kvd_bytes.extend_from_slice(key.as_bytes());
 
