@@ -33,10 +33,8 @@ fn main() {
         },
         dfd_bytes: &bytes[header.index.dfd_byte_offset as usize
             ..(header.index.dfd_byte_offset + header.index.dfd_byte_length) as usize],
-        kvd_bytes: &bytes[header.index.kvd_byte_offset as usize
-            ..(header.index.kvd_byte_offset + header.index.kvd_byte_length) as usize],
-        sgd_bytes: &bytes[header.index.sgd_byte_offset as usize
-            ..(header.index.sgd_byte_offset + header.index.sgd_byte_length) as usize],
+        key_value_pairs: &Default::default(),
+        sgd_bytes: &[],
         levels_descending: ktx2
             .levels()
             .take(num_levels as usize)

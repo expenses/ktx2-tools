@@ -1,7 +1,9 @@
+use std::collections::BTreeMap;
+
 pub struct Writer<'a> {
     pub header: WriterHeader,
     pub dfd_bytes: &'a [u8],
-    pub kvd_bytes: &'a [u8],
+    pub key_value_pairs: &'a BTreeMap<&'a str, &'a [u8]>,
     pub sgd_bytes: &'a [u8],
     pub levels_descending: Vec<WriterLevel>,
 }
@@ -10,6 +12,31 @@ impl<'a> Writer<'a> {
     pub fn write<T: std::io::Write>(&self, writer: &mut T) -> std::io::Result<()> {
         let dfd_offset =
             ktx2::Header::LENGTH + self.levels_descending.len() * ktx2::LevelIndex::LENGTH;
+
+        let mut key_value_pairs = self.key_value_pairs.clone();
+
+        key_value_pairs.insert(
+            "KTXwriter",
+            concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"), "\0").as_bytes(),
+        );
+
+        let mut kvd_bytes = Vec::new();
+
+        for (key, value) in key_value_pairs.iter() {
+            let length = ((key.len() + 1 + value.len()) as u32).to_le_bytes();
+
+            kvd_bytes.extend_from_slice(&length);
+
+            kvd_bytes.extend_from_slice(key.as_bytes());
+
+            kvd_bytes.push(b'\0');
+
+            kvd_bytes.extend_from_slice(value);
+
+            while kvd_bytes.len() % 4 != 0 {
+                kvd_bytes.push(0);
+            }
+        }
 
         writer.write_all(
             &ktx2::Header {
@@ -28,19 +55,25 @@ impl<'a> Writer<'a> {
                 level_count: self.levels_descending.len() as u32,
                 index: ktx2::Index {
                     dfd_byte_length: self.dfd_bytes.len() as u32,
-                    kvd_byte_length: self.kvd_bytes.len() as u32,
+                    kvd_byte_length: kvd_bytes.len() as u32,
                     sgd_byte_length: self.sgd_bytes.len() as u64,
                     dfd_byte_offset: dfd_offset as u32,
-                    kvd_byte_offset: (dfd_offset + self.kvd_bytes.len()) as u32,
-                    sgd_byte_offset: (dfd_offset + self.kvd_bytes.len() + self.kvd_bytes.len())
-                        as u64,
+                    kvd_byte_offset: if kvd_bytes.is_empty() {
+                        0
+                    } else {
+                        dfd_offset + self.dfd_bytes.len()
+                    } as u32,
+                    sgd_byte_offset: if self.sgd_bytes.is_empty() {
+                        0
+                    } else {
+                        dfd_offset + self.dfd_bytes.len() + kvd_bytes.len()
+                    } as u64,
                 },
             }
             .as_bytes()[..],
         )?;
 
-        let mut offset =
-            dfd_offset + self.dfd_bytes.len() + self.kvd_bytes.len() + self.sgd_bytes.len();
+        let mut offset = dfd_offset + self.dfd_bytes.len() + kvd_bytes.len() + self.sgd_bytes.len();
 
         let mut levels = self
             .levels_descending
@@ -66,7 +99,7 @@ impl<'a> Writer<'a> {
         }
 
         writer.write_all(self.dfd_bytes)?;
-        writer.write_all(self.kvd_bytes)?;
+        writer.write_all(&kvd_bytes)?;
         writer.write_all(self.sgd_bytes)?;
 
         for level in self.levels_descending.iter().rev() {
