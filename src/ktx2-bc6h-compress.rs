@@ -1,11 +1,46 @@
 use ktx2_tools::{Writer, WriterHeader, WriterLevel};
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Opts {
+    input: PathBuf,
+    output: PathBuf,
+    #[structopt(long, default_value = "")]
+    key_value_pairs: KeyValuePairs,
+}
+
+#[derive(Debug)]
+struct KeyValuePairs(BTreeMap<String, String>);
+
+impl std::str::FromStr for KeyValuePairs {
+    type Err = String;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let key_value_pairs: Result<BTreeMap<String, String>, Self::Err> = string
+            .split(',')
+            .filter_map(|substr| {
+                if substr.is_empty() {
+                    None
+                } else {
+                    let result = substr
+                        .split_once('=')
+                        .map(|(key, value)| (String::from(key), String::from(value)))
+                        .ok_or_else(|| format!("Could not find '=' in '{}'", substr));
+                    Some(result)
+                }
+            })
+            .collect();
+
+        Ok(Self(key_value_pairs?))
+    }
+}
 
 fn main() {
-    let mut args = std::env::args().skip(1);
-    let input_filename = args.next().unwrap();
-    let output_filename = args.next().unwrap();
+    let opts = Opts::from_args();
 
-    let bytes = std::fs::read(&input_filename).unwrap();
+    let bytes = std::fs::read(&opts.input).unwrap();
     let ktx2 = ktx2::Reader::new(&bytes).unwrap();
 
     let header = ktx2.header();
@@ -33,7 +68,12 @@ fn main() {
         },
         dfd_bytes: &bytes[header.index.dfd_byte_offset as usize
             ..(header.index.dfd_byte_offset + header.index.dfd_byte_length) as usize],
-        key_value_pairs: &Default::default(),
+        key_value_pairs: &opts
+            .key_value_pairs
+            .0
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_bytes()))
+            .collect(),
         sgd_bytes: &[],
         levels_descending: ktx2
             .levels()
@@ -77,6 +117,6 @@ fn main() {
     };
 
     writer
-        .write(&mut std::fs::File::create(output_filename).unwrap())
+        .write(&mut std::fs::File::create(&opts.output).unwrap())
         .unwrap();
 }

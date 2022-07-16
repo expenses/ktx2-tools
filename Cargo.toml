@@ -28,3 +28,4 @@ ktx2 = { git = "https://github.com/BVE-Reborn/ktx2" }
 zstd = "0.11.2"
 basis-universal = "0.2.0"
 intel_tex_2 = "0.2.0"
+structopt = "0.3.26"
