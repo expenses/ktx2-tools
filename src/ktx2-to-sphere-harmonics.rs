@@ -1,6 +1,8 @@
 fn main() {
-    let filename = std::env::args().nth(1).unwrap();
-    let bytes = std::fs::read(&filename).unwrap();
+    let mut args = std::env::args().skip(1);
+    let input_filename = args.next().unwrap();
+    let output_filename = args.next().unwrap();
+    let bytes = std::fs::read(&input_filename).unwrap();
 
     let ktx2 = ktx2::Reader::new(&bytes).unwrap();
 
@@ -37,11 +39,12 @@ fn main() {
         })
         .collect();
 
-    let res: Vec<f32> = cubemap_spherical_harmonics::process(&images)
+    let res: Vec<u8> = cubemap_spherical_harmonics::process(&images)
         .unwrap()
         .iter()
         .flat_map(|vec| vec.to_array())
+        .flat_map(|float| float.to_le_bytes())
         .collect();
 
-    println!("{:?}", res);
+    std::fs::write(output_filename, &res).unwrap();
 }

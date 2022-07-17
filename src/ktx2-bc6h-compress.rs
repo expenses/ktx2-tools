@@ -9,6 +9,8 @@ struct Opts {
     output: PathBuf,
     #[structopt(long, default_value = "")]
     key_value_pairs: KeyValuePairs,
+    #[structopt(long)]
+    sphere_harmonics_file: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -49,8 +51,6 @@ fn main() {
         .level_count
         .min((header.pixel_width.min(header.pixel_height) as f32).log2() as u32 - 1);
 
-    println!("{:#?} {}", header, num_levels);
-
     let convert_to_half = match header.format {
         Some(ktx2::Format::R16G16B16A16_SFLOAT) => false,
         Some(ktx2::Format::R32G32B32A32_SFLOAT) => true,
@@ -59,6 +59,20 @@ fn main() {
             return;
         }
     };
+
+    let mut key_value_pairs: BTreeMap<String, Vec<u8>> = opts
+        .key_value_pairs
+        .0
+        .into_iter()
+        .map(|(key, value)| (key, value.as_bytes().to_vec()))
+        .collect();
+
+    if let Some(filename) = &opts.sphere_harmonics_file {
+        key_value_pairs.insert(
+            "sphere_harmonics".to_string(),
+            std::fs::read(filename).unwrap(),
+        );
+    }
 
     let writer = Writer {
         header: WriterHeader {
@@ -73,12 +87,7 @@ fn main() {
         },
         dfd_bytes: &bytes[header.index.dfd_byte_offset as usize
             ..(header.index.dfd_byte_offset + header.index.dfd_byte_length) as usize],
-        key_value_pairs: &opts
-            .key_value_pairs
-            .0
-            .iter()
-            .map(|(key, value)| (key.as_str(), value.as_bytes()))
-            .collect(),
+        key_value_pairs: &key_value_pairs,
         sgd_bytes: &[],
         levels_descending: ktx2
             .levels()

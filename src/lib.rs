@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 pub struct Writer<'a> {
     pub header: WriterHeader,
     pub dfd_bytes: &'a [u8],
-    pub key_value_pairs: &'a BTreeMap<&'a str, &'a [u8]>,
+    pub key_value_pairs: &'a BTreeMap<String, Vec<u8>>,
     pub sgd_bytes: &'a [u8],
     pub levels_descending: Vec<WriterLevel>,
 }
@@ -16,8 +16,10 @@ impl<'a> Writer<'a> {
         let mut key_value_pairs = self.key_value_pairs.clone();
 
         key_value_pairs.insert(
-            "KTXwriter",
-            concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"), "\0").as_bytes(),
+            "KTXwriter".to_string(),
+            concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"), "\0")
+                .as_bytes()
+                .to_vec(),
         );
 
         let mut kvd_bytes = Vec::new();
