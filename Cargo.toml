@@ -22,6 +22,10 @@ path = "src/ktx2-to-dds.rs"
 name = "ktx2-bc6h-compress"
 path = "src/ktx2-bc6h-compress.rs"
 
+[[bin]]
+name = "ktx2-to-sphere-harmonics"
+path = "src/ktx2-to-sphere-harmonics.rs"
+
 [dependencies]
 ddsfile = "0.5.1"
 ktx2 = { git = "https://github.com/BVE-Reborn/ktx2" }
@@ -29,3 +33,6 @@ zstd = "0.11.2"
 basis-universal = "0.2.0"
 intel_tex_2 = "0.2.0"
 structopt = "0.3.26"
+cubemap-spherical-harmonics = { git = "https://github.com/DGriffin91/cubemap-spherical-harmonics", version = "0.1.0" }
+image = "0.24.2"
+half = "2.0.0"

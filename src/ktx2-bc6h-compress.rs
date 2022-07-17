@@ -19,7 +19,7 @@ impl std::str::FromStr for KeyValuePairs {
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let key_value_pairs: Result<BTreeMap<String, String>, Self::Err> = string
-            .split(',')
+            .split(';')
             .filter_map(|substr| {
                 if substr.is_empty() {
                     None
@@ -51,9 +51,14 @@ fn main() {
 
     println!("{:#?} {}", header, num_levels);
 
-    assert_eq!(header.format, Some(ktx2::Format::R16G16B16A16_SFLOAT));
-
-    assert_eq!(header.face_count, 6);
+    let convert_to_half = match header.format {
+        Some(ktx2::Format::R16G16B16A16_SFLOAT) => false,
+        Some(ktx2::Format::R32G32B32A32_SFLOAT) => true,
+        _ => {
+            eprintln!("Unsupported frormat: {:?}", header.format);
+            return;
+        }
+    };
 
     let writer = Writer {
         header: WriterHeader {
@@ -80,7 +85,7 @@ fn main() {
             .take(num_levels as usize)
             .enumerate()
             .map(|(i, level)| {
-                let level_bytes = match header.supercompression_scheme {
+                let mut level_bytes = match header.supercompression_scheme {
                     Some(ktx2::SupercompressionScheme::Zstandard) => std::borrow::Cow::Owned(
                         zstd::bulk::decompress(level.data, level.uncompressed_byte_length as usize)
                             .unwrap(),
@@ -88,6 +93,18 @@ fn main() {
                     Some(other) => todo!("{:?}", other),
                     None => std::borrow::Cow::Borrowed(level.data),
                 };
+
+                if convert_to_half {
+                    level_bytes = level_bytes
+                        .chunks(4)
+                        .flat_map(|bytes| {
+                            half::f16::from_f32(f32::from_le_bytes(
+                                <[u8; 4]>::try_from(bytes).unwrap(),
+                            ))
+                            .to_le_bytes()
+                        })
+                        .collect();
+                }
 
                 let width = header.pixel_width >> i;
                 let height = header.pixel_height >> i;
