@@ -1,3 +1,5 @@
+pub use ktx2;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 pub struct Writer<'a> {
@@ -5,13 +7,13 @@ pub struct Writer<'a> {
     pub dfd_bytes: &'a [u8],
     pub key_value_pairs: &'a BTreeMap<String, Vec<u8>>,
     pub sgd_bytes: &'a [u8],
-    pub levels_descending: Vec<WriterLevel>,
+    pub uncompressed_levels_descending: &'a [Cow<'a, [u8]>],
 }
 
 impl<'a> Writer<'a> {
     pub fn write<T: std::io::Write>(&self, writer: &mut T) -> std::io::Result<()> {
-        let dfd_offset =
-            ktx2::Header::LENGTH + self.levels_descending.len() * ktx2::LevelIndex::LENGTH;
+        let dfd_offset = ktx2::Header::LENGTH
+            + self.uncompressed_levels_descending.len() * ktx2::LevelIndex::LENGTH;
 
         let mut key_value_pairs = self.key_value_pairs.clone();
 
@@ -43,18 +45,14 @@ impl<'a> Writer<'a> {
         writer.write_all(
             &ktx2::Header {
                 format: self.header.format,
-                type_size: if self.header.supercompression_scheme.is_some() {
-                    1
-                } else {
-                    self.header.type_size
-                },
+                type_size: self.header.type_size,
                 pixel_width: self.header.pixel_width,
                 pixel_height: self.header.pixel_height,
                 pixel_depth: self.header.pixel_depth,
                 layer_count: self.header.layer_count,
                 face_count: self.header.face_count,
                 supercompression_scheme: self.header.supercompression_scheme,
-                level_count: self.levels_descending.len() as u32,
+                level_count: self.uncompressed_levels_descending.len() as u32,
                 index: ktx2::Index {
                     dfd_byte_length: self.dfd_bytes.len() as u32,
                     kvd_byte_length: kvd_bytes.len() as u32,
@@ -77,18 +75,34 @@ impl<'a> Writer<'a> {
 
         let mut offset = dfd_offset + self.dfd_bytes.len() + kvd_bytes.len() + self.sgd_bytes.len();
 
-        let mut levels = self
-            .levels_descending
+        let compressed_levels: Vec<Cow<[u8]>> = self
+            .uncompressed_levels_descending
             .iter()
+            .map(|level| match self.header.supercompression_scheme {
+                Some(ktx2::SupercompressionScheme::Zstandard) => {
+                    Cow::Owned(zstd::bulk::compress(level, 0).unwrap())
+                }
+                Some(other) => panic!("{:?}", other),
+                None => {
+                    let level: &[u8] = level;
+                    Cow::Borrowed(level)
+                }
+            })
+            .collect();
+
+        let mut levels = self
+            .uncompressed_levels_descending
+            .iter()
+            .zip(&compressed_levels)
             .rev()
-            .map(|level| {
+            .map(|(uncompressed_level, level)| {
                 let index = ktx2::LevelIndex {
                     byte_offset: offset as u64,
-                    byte_length: level.bytes.len() as u64,
-                    uncompressed_byte_length: level.uncompressed_length as u64,
+                    byte_length: level.len() as u64,
+                    uncompressed_byte_length: uncompressed_level.len() as u64,
                 };
 
-                offset += level.bytes.len();
+                offset += level.len();
 
                 index
             })
@@ -104,19 +118,15 @@ impl<'a> Writer<'a> {
         writer.write_all(&kvd_bytes)?;
         writer.write_all(self.sgd_bytes)?;
 
-        for level in self.levels_descending.iter().rev() {
-            writer.write_all(&level.bytes)?;
+        for level in compressed_levels.iter().rev() {
+            writer.write_all(level)?;
         }
 
         Ok(())
     }
 }
 
-pub struct WriterLevel {
-    pub uncompressed_length: usize,
-    pub bytes: Vec<u8>,
-}
-
+#[derive(Clone, Copy)]
 pub struct WriterHeader {
     pub format: Option<ktx2::Format>,
     pub type_size: u32,

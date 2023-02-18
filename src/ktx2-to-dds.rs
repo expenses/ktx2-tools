@@ -1,6 +1,6 @@
 fn main() {
     let filename = std::env::args().nth(1).unwrap();
-    let bytes = std::fs::read(&filename).unwrap();
+    let bytes = std::fs::read(filename).unwrap();
 
     let ktx2 = ktx2::Reader::new(&bytes).unwrap();
 
@@ -14,8 +14,8 @@ fn main() {
             let basic_dfd = ktx2::BasicDataFormatDescriptor::parse(dfd.data);
             basic_dfd.ok()
         })
-        .filter(|basic_dfd| basic_dfd.color_model == Some(ktx2::ColorModel::UASTC))
-        .filter_map(|basic_dfd| basic_dfd.transfer_function)
+        .filter(|basic_dfd| basic_dfd.header.color_model == Some(ktx2::ColorModel::UASTC))
+        .filter_map(|basic_dfd| basic_dfd.header.transfer_function)
         .next();
 
     let mut dds = ddsfile::Dds::new_dxgi(ddsfile::NewDxgiParams {
@@ -26,8 +26,11 @@ fn main() {
             (Some(ktx2::Format::R32G32B32A32_SFLOAT), _) => ddsfile::DxgiFormat::R32G32B32A32_Float,
             (Some(ktx2::Format::R16G16B16A16_SFLOAT), _) => ddsfile::DxgiFormat::R16G16B16A16_Float,
             (Some(ktx2::Format::BC6H_UFLOAT_BLOCK), _) => ddsfile::DxgiFormat::BC6H_UF16,
+            (Some(ktx2::Format::BC7_UNORM_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm,
+            (Some(ktx2::Format::BC7_SRGB_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
+
             (None, Some(ktx2::TransferFunction::SRGB)) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
-            (None, Some(_)) => ddsfile::DxgiFormat::BC7_UNorm,
+            (None, _) => ddsfile::DxgiFormat::BC7_UNorm,
             other => unimplemented!("unsupported format: {:?}", other),
         },
         mipmap_levels: Some(header.level_count).filter(|&count| count != 0),

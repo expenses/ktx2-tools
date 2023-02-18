@@ -1,4 +1,5 @@
-use ktx2_tools::{Writer, WriterHeader, WriterLevel};
+use ktx2_tools::{Writer, WriterHeader};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -89,7 +90,7 @@ fn main() {
             ..(header.index.dfd_byte_offset + header.index.dfd_byte_length) as usize],
         key_value_pairs: &key_value_pairs,
         sgd_bytes: &[],
-        levels_descending: ktx2
+        uncompressed_levels_descending: &ktx2
             .levels()
             .take(num_levels as usize)
             .enumerate()
@@ -134,12 +135,9 @@ fn main() {
                     compressed.extend_from_slice(&compressed_chunk);
                 }
 
-                WriterLevel {
-                    uncompressed_length: compressed.len(),
-                    bytes: zstd::bulk::compress(&compressed, 0).unwrap(),
-                }
+                Cow::Owned(compressed)
             })
-            .collect(),
+            .collect::<Vec<_>>(),
     };
 
     writer

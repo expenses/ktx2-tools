@@ -1,8 +1,16 @@
+use std::path::PathBuf;
+use structopt::StructOpt;
+
+#[derive(StructOpt)]
+struct Opts {
+    input: PathBuf,
+    output: Option<PathBuf>,
+}
+
 fn main() {
-    let mut args = std::env::args().skip(1);
-    let input_filename = args.next().unwrap();
-    let output_filename = args.next().unwrap();
-    let bytes = std::fs::read(&input_filename).unwrap();
+    let opts = Opts::from_args();
+
+    let bytes = std::fs::read(&opts.input).unwrap();
 
     let ktx2 = ktx2::Reader::new(&bytes).unwrap();
 
@@ -39,12 +47,17 @@ fn main() {
         })
         .collect();
 
-    let res: Vec<u8> = cubemap_spherical_harmonics::process(&images)
-        .unwrap()
-        .iter()
-        .flat_map(|vec| vec.to_array())
-        .flat_map(|float| float.to_le_bytes())
-        .collect();
+    let coefficients = cubemap_spherical_harmonics::process(&images).unwrap();
 
-    std::fs::write(output_filename, &res).unwrap();
+    if let Some(ref output_filename) = opts.output {
+        let bytes: Vec<u8> = coefficients
+            .iter()
+            .flat_map(|vec| vec.to_array())
+            .flat_map(|float| float.to_le_bytes())
+            .collect();
+
+        std::fs::write(output_filename, bytes).unwrap();
+    } else {
+        println!("{:?}", coefficients);
+    }
 }
