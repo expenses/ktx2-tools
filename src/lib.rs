@@ -126,7 +126,7 @@ impl<'a> Writer<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct WriterHeader {
     pub format: Option<ktx2::Format>,
     pub type_size: u32,

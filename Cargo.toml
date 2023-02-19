@@ -30,6 +30,10 @@ path = "src/ktx2-to-sphere-harmonics.rs"
 name = "compress-bc7"
 path = "src/compress-bc7.rs"
 
+[[bin]]
+name = "dds-to-ktx2"
+path = "src/dds-to-ktx2.rs"
+
 [dependencies]
 ddsfile = "0.5.1"
 ktx2 = { git = "https://github.com/BVE-Reborn/ktx2" }

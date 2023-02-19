@@ -28,6 +28,8 @@ fn main() {
             (Some(ktx2::Format::BC6H_UFLOAT_BLOCK), _) => ddsfile::DxgiFormat::BC6H_UF16,
             (Some(ktx2::Format::BC7_UNORM_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm,
             (Some(ktx2::Format::BC7_SRGB_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
+            (Some(ktx2::Format::E5B9G9R9_UFLOAT_PACK32), _) => ddsfile::DxgiFormat::R9G9B9E5_SharedExp,
+
 
             (None, Some(ktx2::TransferFunction::SRGB)) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
             (None, _) => ddsfile::DxgiFormat::BC7_UNorm,
