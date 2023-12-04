@@ -10,6 +10,8 @@ struct Opts {
     output: PathBuf,
     #[structopt(long)]
     no_zstd: bool,
+    #[structopt(long)]
+    srgb: bool,
 }
 
 fn main() {
@@ -46,9 +48,15 @@ fn main() {
         height >>= 1;
     }
 
+    let format = if opts.srgb {
+        ktx2::Format::BC7_SRGB_BLOCK
+    } else {
+        ktx2::Format::BC7_UNORM_BLOCK
+    };
+
     let writer = Writer {
         header: WriterHeader {
-            format: Some(ktx2::Format::BC7_UNORM_BLOCK),
+            format: Some(format),
             type_size: 1,
             pixel_width: image.width().max(4),
             pixel_height: image.height().max(4),

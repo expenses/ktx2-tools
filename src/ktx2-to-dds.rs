@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 fn main() {
     let filename = std::env::args().nth(1).unwrap();
     let bytes = std::fs::read(filename).unwrap();
@@ -23,13 +25,20 @@ fn main() {
         height: header.pixel_height,
         depth: Some(header.pixel_depth).filter(|&depth| depth != 0),
         format: match (header.format, uastc_transfer_function) {
+            (Some(ktx2::Format::R8G8B8A8_UNORM), _) => ddsfile::DxgiFormat::R8G8B8A8_UNorm,
+            (Some(ktx2::Format::R8G8B8A8_SRGB), _) => ddsfile::DxgiFormat::R8G8B8A8_UNorm_sRGB,
             (Some(ktx2::Format::R32G32B32A32_SFLOAT), _) => ddsfile::DxgiFormat::R32G32B32A32_Float,
             (Some(ktx2::Format::R16G16B16A16_SFLOAT), _) => ddsfile::DxgiFormat::R16G16B16A16_Float,
             (Some(ktx2::Format::BC6H_UFLOAT_BLOCK), _) => ddsfile::DxgiFormat::BC6H_UF16,
             (Some(ktx2::Format::BC7_UNORM_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm,
             (Some(ktx2::Format::BC7_SRGB_BLOCK), _) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
-            (Some(ktx2::Format::E5B9G9R9_UFLOAT_PACK32), _) => ddsfile::DxgiFormat::R9G9B9E5_SharedExp,
-
+            (Some(ktx2::Format::E5B9G9R9_UFLOAT_PACK32), _) => {
+                ddsfile::DxgiFormat::R9G9B9E5_SharedExp
+            }
+            (Some(ktx2::Format::R8_UNORM), _) => ddsfile::DxgiFormat::R8_UNorm,
+            (Some(ktx2::Format::ASTC_4x4_SFLOAT_BLOCK), _) => {
+                ddsfile::DxgiFormat::R32G32B32A32_Float
+            }
 
             (None, Some(ktx2::TransferFunction::SRGB)) => ddsfile::DxgiFormat::BC7_UNorm_sRGB,
             (None, _) => ddsfile::DxgiFormat::BC7_UNorm,
@@ -64,9 +73,10 @@ fn main() {
             None => std::borrow::Cow::Borrowed(level.data),
         };
 
+        let slice_width = header.pixel_width >> level_index;
+        let slice_height = header.pixel_height >> level_index;
+
         let level_bytes = if uastc_transfer_function.is_some() {
-            let slice_width = header.pixel_width >> level_index;
-            let slice_height = header.pixel_height >> level_index;
             let (block_width_pixels, block_height_pixels) = (4, 4);
 
             std::borrow::Cow::Owned(
@@ -89,6 +99,34 @@ fn main() {
                     )
                     .unwrap(),
             )
+        } else if header.format == Some(ktx2::Format::ASTC_4x4_SFLOAT_BLOCK) {
+            let mut context = astcenc_rs::Context::new(
+                astcenc_rs::ConfigBuilder::new()
+                    .with_profile(astcenc_rs::Profile::HdrRgba)
+                    .with_preset(astcenc_rs::Preset::Exhaustive)
+                    .with_block_size(astcenc_rs::Extents::default_block_size())
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+
+            dbg!(&header.pixel_depth, header.face_count);
+
+            let image: Vec<f32> = level_bytes
+                .chunks(level_bytes.len() / header.pixel_depth.max(1) as usize)
+                .map(|chunk| {
+                    context
+                        .decompress(
+                            chunk,
+                            astcenc_rs::Extents::new(slice_width, slice_height),
+                            astcenc_rs::Swizzle::rgba(),
+                        )
+                        .unwrap()
+                })
+                .flatten()
+                .collect();
+
+            Cow::Owned(image.iter().flat_map(|float| float.to_le_bytes()).collect())
         } else {
             level_bytes
         };

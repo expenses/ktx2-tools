@@ -35,7 +35,7 @@ name = "dds-to-ktx2"
 path = "src/dds-to-ktx2.rs"
 
 [dependencies]
-ddsfile = "0.5.1"
+ddsfile = "0.5.2"
 ktx2 = { git = "https://github.com/BVE-Reborn/ktx2" }
 zstd = "0.11.2"
 basis-universal = "0.2.0"
@@ -45,3 +45,7 @@ cubemap-spherical-harmonics = { git = "https://github.com/DGriffin91/cubemap-sph
 image = "0.24.2"
 half = "2.0.0"
 rayon = "1.5.3"
+astcenc-rs = { git = "https://github.com/expenses/astcenc-rs" }
+
+[patch.'https://github.com/BVE-Reborn/ktx2']
+ktx2 = { git = "https://github.com/expenses/ktx2", branch = "astc-sfloat-formats" }

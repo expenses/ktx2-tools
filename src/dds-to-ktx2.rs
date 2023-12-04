@@ -9,14 +9,15 @@ fn main() {
 
     assert_eq!(num_array_layers, 1);
 
-    let data = dds.get_data(0).unwrap();
+    let num_mipmap_levels = dds.get_num_mipmap_levels();
 
-    dbg!(&data.len());
+    let format = dds.header10.as_ref().unwrap().dxgi_format;
 
     let header = ktx2_tools::WriterHeader {
-        format: Some(match dds.header10.as_ref().unwrap().dxgi_format {
+        format: Some(match format {
             ddsfile::DxgiFormat::R9G9B9E5_SharedExp => ktx2::Format::E5B9G9R9_UFLOAT_PACK32,
-            _ => panic!()
+            ddsfile::DxgiFormat::BC1_UNorm => ktx2::Format::BC1_RGB_SRGB_BLOCK,
+            _ => panic!("{:?}", format),
         }),
         type_size: 4,
         pixel_width: dds.header.width,
@@ -24,8 +25,25 @@ fn main() {
         pixel_depth: dds.header.depth.unwrap_or(0),
         layer_count: 0,
         face_count: 1,
-        supercompression_scheme: Some(ktx2::SupercompressionScheme::Zstandard)
+        supercompression_scheme: None, //Some(ktx2::SupercompressionScheme::Zstandard)
     };
+
+    let width = dds.header.width as usize;
+    let height = dds.header.height as usize;
+    let mut offset = 0;
+
+    let mut levels = Vec::new();
+
+    for i in 0..num_mipmap_levels {
+        let level_width = (width >> i).max(4);
+        let level_height = (height >> i).max(4);
+        let data: &[u8] = &dds.data[offset..offset + level_width * level_height / 2];
+        offset += data.len();
+
+        levels.push(std::borrow::Cow::Borrowed(data));
+    }
+
+    dbg!(offset, dds.data.len());
 
     let dfd = [
         // DFD
@@ -41,8 +59,10 @@ fn main() {
         dfd_bytes: &dfd,
         key_value_pairs: &Default::default(),
         sgd_bytes: &[],
-        uncompressed_levels_descending: &[std::borrow::Cow::Borrowed(data)]
+        uncompressed_levels_descending: &levels,
     };
 
-    writer.write(&mut std::fs::File::create("out.ktx2").unwrap()).unwrap()
+    writer
+        .write(&mut std::fs::File::create("out.ktx2").unwrap())
+        .unwrap()
 }
