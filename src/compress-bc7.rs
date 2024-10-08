@@ -86,8 +86,8 @@ fn main() {
                     &settings,
                     &intel_tex_2::RgbaSurface {
                         data: &resized,
-                        width,
-                        height,
+                        width: intel_tex_2::divide_up_by_multiple(width, 4) * 4,
+                        height,//: intel_tex_2::divide_up_by_multiple(height, 4) * 4,
                         stride: width * 4,
                     },
                 );
