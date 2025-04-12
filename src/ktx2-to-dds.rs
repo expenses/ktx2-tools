@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 fn main() {
     let filename = std::env::args().nth(1).unwrap();
     let bytes = std::fs::read(filename).unwrap();
@@ -10,15 +8,15 @@ fn main() {
 
     println!("{:#?}", header);
 
-    let uastc_transfer_function = ktx2
-        .data_format_descriptors()
-        .filter_map(|dfd| {
-            let basic_dfd = ktx2::BasicDataFormatDescriptor::parse(dfd.data);
-            basic_dfd.ok()
-        })
-        .filter(|basic_dfd| basic_dfd.header.color_model == Some(ktx2::ColorModel::UASTC))
-        .filter_map(|basic_dfd| basic_dfd.header.transfer_function)
-        .next();
+    let uastc_transfer_function = Some(ktx2::TransferFunction::SRGB); /*ktx2
+                                                                      .dfd_blocks()
+                                                                      .filter_map(|dfd| {
+                                                                          let basic_dfd = ktx2::DfdBlockHeaderBasic::parse(dfd.data);
+                                                                          basic_dfd.ok()
+                                                                      })
+                                                                      .filter(|basic_dfd| basic_dfd.header.color_model == Some(ktx2::ColorModel::UASTC))
+                                                                      .filter_map(|basic_dfd| basic_dfd.header.transfer_function)
+                                                                      .next()*/
 
     let mut dds = ddsfile::Dds::new_dxgi(ddsfile::NewDxgiParams {
         width: header.pixel_width,
@@ -100,7 +98,7 @@ fn main() {
                     .unwrap(),
             )
         } else if header.format == Some(ktx2::Format::ASTC_4x4_SFLOAT_BLOCK) {
-            let mut context = astcenc_rs::Context::new(
+            /*let mut context = astcenc_rs::Context::new(
                 astcenc_rs::ConfigBuilder::new()
                     .with_profile(astcenc_rs::Profile::HdrRgba)
                     .with_preset(astcenc_rs::Preset::Exhaustive)
@@ -126,7 +124,8 @@ fn main() {
                 .flatten()
                 .collect();
 
-            Cow::Owned(image.iter().flat_map(|float| float.to_le_bytes()).collect())
+            Cow::Owned(image.iter().flat_map(|float| float.to_le_bytes()).collect())*/
+            panic!("astc disabled for now")
         } else {
             level_bytes
         };

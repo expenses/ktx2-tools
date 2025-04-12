@@ -47,12 +47,12 @@ fn main() {
     println!("Format: {:?}", header.format);
     println!();
 
-    for (i, dfd) in ktx2.data_format_descriptors().enumerate() {
+    for (i, dfd) in ktx2.dfd_blocks().enumerate() {
         println!("[Data format descriptor {}]", i);
         println!("Vendor ID: {}", dfd.header.vendor_id);
         println!("Version number: {}", dfd.header.version_number);
 
-        if let Ok(basis_dfd) = ktx2::BasicDataFormatDescriptor::parse(dfd.data) {
+        /*if let Ok(basis_dfd) = ktx2::DfdBlockHeaderBasic::from_bytes(dfd.data) {
             println!("[[Basis Universal data format descriptor]]");
             println!("Color model: {:?}", basis_dfd.header.color_model);
             println!("Color primaries: {:?}", basis_dfd.header.color_primaries);
@@ -61,7 +61,7 @@ fn main() {
                 basis_dfd.header.transfer_function
             );
             println!("Flags: {:?}", basis_dfd.header.flags);
-        }
+        }*/
 
         println!();
     }
